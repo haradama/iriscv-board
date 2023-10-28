@@ -1,12 +1,11 @@
 class Memory {
-  late List<int> _data; // 実際のメモリデータ
-  final int size; // メモリのサイズ (バイト単位)
+  late List<int> _data;
+  final int size;
 
   Memory({required this.size}) {
     _data = List.filled(size, 0);
   }
 
-  // 指定されたアドレスから4バイトをフェッチする
   int fetch(int address) {
     if (address < 0 || address + 3 >= size) {
       throw Exception('Memory access out of bounds at address $address');
@@ -19,7 +18,6 @@ class Memory {
     return value;
   }
 
-  // 指定されたアドレスに4バイトのデータをストアする
   void store(int address, int value) {
     if (address < 0 || address + 3 >= size) {
       throw Exception('Memory access out of bounds at address $address');
@@ -30,7 +28,6 @@ class Memory {
     }
   }
 
-  // メモリのリセット
   void reset() {
     for (int i = 0; i < size; i++) {
       _data[i] = 0;

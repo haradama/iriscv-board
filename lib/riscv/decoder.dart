@@ -20,7 +20,7 @@ class Decoder {
         // 具体的なRタイプの命令を判別して返す
         if (funct3 == 0 && funct7 == 0) {
           // ADD命令の場合
-          return AddInstruction(rd, rs1, rs2);
+          return ADDInstruction(rd, rs1, rs2);
         }
         // 他のRタイプ命令も同様に追加できる
         break;
