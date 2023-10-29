@@ -291,3 +291,209 @@ class SLTUInstruction extends Instruction {
   @override
   String toString() => 'SLTU x${operands[0]}, x${operands[1]}, x${operands[2]}';
 }
+
+class BEQInstruction extends Instruction {
+  final int offset; // This is the immediate value shifted and sign-extended
+
+  BEQInstruction(int rs1, int rs2, this.offset) : super([rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(operands[0]);
+    int rs2Value = registers.getGPR(operands[1]);
+
+    if (rs1Value == rs2Value) {
+      // Branch by setting the program counter to its current value + offset
+      registers.setPC(registers.getPC() + offset);
+    }
+  }
+
+  @override
+  String toString() => 'BEQ x${operands[0]}, x${operands[1]}, $offset';
+}
+
+class BGEInstruction extends Instruction {
+  final int offset; // This is the immediate value shifted and sign-extended
+
+  BGEInstruction(int rs1, int rs2, this.offset) : super([rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(operands[0]);
+    int rs2Value = registers.getGPR(operands[1]);
+
+    if (rs1Value >= rs2Value) {
+      // Branch by setting the program counter to its current value + offset
+      registers.setPC(registers.getPC() + offset);
+    }
+  }
+
+  @override
+  String toString() => 'BGE x${operands[0]}, x${operands[1]}, ${offset}';
+}
+
+class BNEInstruction extends Instruction {
+  final int offset; // This is the immediate value shifted and sign-extended
+
+  BNEInstruction(int rs1, int rs2, this.offset) : super([rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(operands[0]);
+    int rs2Value = registers.getGPR(operands[1]);
+
+    if (rs1Value != rs2Value) {
+      // Branch by setting the program counter to its current value + offset
+      registers.setPC(registers.getPC() + offset);
+    }
+  }
+
+  @override
+  String toString() => 'BNE x${operands[0]}, x${operands[1]}, $offset';
+}
+
+class ECALLInstruction extends Instruction {
+  ECALLInstruction() : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    // For this example, we're throwing an exception when ECALL is executed.
+    throw Exception(
+        'ECALL instruction executed. System call interruption generated.');
+  }
+
+  @override
+  String toString() => 'ECALL';
+}
+
+class FENCEInstruction extends Instruction {
+  FENCEInstruction() : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    // For a simple emulation, the FENCE operation might not have any effect.
+  }
+
+  @override
+  String toString() => 'FENCE';
+}
+
+class JALInstruction extends Instruction {
+  final int rd; // Destination register to save the return address
+  final int offset; // This is the immediate value shifted and sign-extended
+
+  JALInstruction(this.rd, this.offset) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int returnAddress =
+        registers.getPC() + 4; // Address of the next instruction
+    registers.setGPR(rd, returnAddress); // Save return address in rd
+
+    // Jump by setting the program counter to its current value + offset
+    registers.setPC(registers.getPC() + offset);
+  }
+
+  @override
+  String toString() => 'JAL x$rd, $offset';
+}
+
+class SWInstruction extends Instruction {
+  final int rs1; // Source register 1 (base address)
+  final int rs2; // Source register 2 (data to store)
+  final int offset; // 12-bit signed offset
+
+  SWInstruction(this.rs1, this.rs2, this.offset) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int address = registers.getGPR(rs1) + offset; // Calculate memory address
+    int valueToStore = registers.getGPR(rs2); // Get data from rs2
+
+    memory.store(address, valueToStore); // Store the word in memory
+  }
+
+  @override
+  String toString() => 'SW x$rs2, x$rs1, $offset';
+}
+
+class ADDIWInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register
+  final int imm; // 12-bit immediate value
+
+  ADDIWInstruction(this.rd, this.rs1, this.imm) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int sum = registers.getGPR(rs1) + imm; // 64-bit addition
+
+    int result = (sum << 32) >> 32; // Extract and sign-extend lower 32 bits
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() => 'ADDIW x$rd, x$rs1, $imm';
+}
+
+class CSRRSInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register
+  final int csr; // CSR register index
+
+  CSRRSInstruction(this.rd, this.rs1, this.csr) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int csrValue = registers.getCSR(csr); // Read CSR value
+    registers.setGPR(rd, csrValue); // Write CSR value to rd
+
+    if (rs1 != 0) {
+      // Don't modify the CSR if rs1 is x0
+      int rs1Value = registers.getGPR(rs1);
+      registers.setCSR(csr, csrValue | rs1Value); // Set bits in the CSR
+    }
+  }
+
+  @override
+  String toString() => 'CSRRS x$rd, $csr, x$rs1';
+}
+
+class CSRRWIInstruction extends Instruction {
+  final int rd; // Destination register
+  final int csr; // CSR register index
+  final int zimm; // Immediate value
+
+  CSRRWIInstruction(this.rd, this.csr, this.zimm) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int csrValue = registers.getCSR(csr); // Read CSR value
+    registers.setGPR(rd, csrValue); // Write CSR value to rd
+
+    registers.setCSR(csr, zimm); // Set CSR to the immediate value
+  }
+
+  @override
+  String toString() => 'CSRRWI x$rd, $csr, $zimm';
+}
+
+class CSRRWInstruction extends Instruction {
+  final int rd; // Destination register
+  final int csr; // CSR register index
+  final int rs1; // Source register
+
+  CSRRWInstruction(this.rd, this.csr, this.rs1) : super([]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int csrValue = registers.getCSR(csr); // Read CSR value
+    int sourceValue = registers.getGPR(rs1); // Read source register value
+
+    registers.setGPR(rd, csrValue); // Write CSR value to rd
+    registers.setCSR(csr, sourceValue); // Set CSR to the source register value
+  }
+
+  @override
+  String toString() => 'CSRRW x$rd, $csr, x$rs1';
+}

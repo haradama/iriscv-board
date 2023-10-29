@@ -589,4 +589,307 @@ void main() {
       expect(registers.getGPR(2), 1);
     });
   });
+
+  group('BEQInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('BEQ branches when rs1 equals rs2', () {
+      registers.setGPR(1, 5); // Setting x1 to 5
+      registers.setGPR(2, 5); // Setting x2 to 5
+      var instruction = BEQInstruction(1, 2, 4); // BEQ x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should be advanced by the offset
+      expect(registers.getPC(), initialPC + 4);
+    });
+
+    test('BEQ does not branch when rs1 is not equal to rs2', () {
+      registers.setGPR(1, 5); // Setting x1 to 5
+      registers.setGPR(2, 6); // Setting x2 to 6
+      var instruction = BEQInstruction(1, 2, 4); // BEQ x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should remain unchanged
+      expect(registers.getPC(), initialPC);
+    });
+  });
+
+  group('BGEInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('BGE branches when rs1 is greater than rs2', () {
+      registers.setGPR(1, 6); // Setting x1 to 6
+      registers.setGPR(2, 5); // Setting x2 to 5
+      var instruction = BGEInstruction(1, 2, 4); // BGE x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should be advanced by the offset
+      expect(registers.getPC(), initialPC + 4);
+    });
+
+    test('BGE branches when rs1 is equal to rs2', () {
+      registers.setGPR(1, 5); // Setting x1 to 5
+      registers.setGPR(2, 5); // Setting x2 to 5
+      var instruction = BGEInstruction(1, 2, 4); // BGE x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should be advanced by the offset
+      expect(registers.getPC(), initialPC + 4);
+    });
+
+    test('BGE does not branch when rs1 is less than rs2', () {
+      registers.setGPR(1, 4); // Setting x1 to 4
+      registers.setGPR(2, 5); // Setting x2 to 5
+      var instruction = BGEInstruction(1, 2, 4); // BGE x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should remain unchanged
+      expect(registers.getPC(), initialPC);
+    });
+  });
+
+  group('BNEInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('BNE branches when rs1 is not equal to rs2', () {
+      registers.setGPR(1, 5); // Setting x1 to 5
+      registers.setGPR(2, 6); // Setting x2 to 6
+      var instruction = BNEInstruction(1, 2, 4); // BNE x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should be advanced by the offset
+      expect(registers.getPC(), initialPC + 4);
+    });
+
+    test('BNE does not branch when rs1 is equal to rs2', () {
+      registers.setGPR(1, 5); // Setting x1 to 5
+      registers.setGPR(2, 5); // Setting x2 to 5
+      var instruction = BNEInstruction(1, 2, 4); // BNE x1, x2, offset 4
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should remain unchanged
+      expect(registers.getPC(), initialPC);
+    });
+  });
+
+  group('ECALLInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('ECALL throws an exception when executed', () {
+      var instruction = ECALLInstruction();
+      // Expect the execute method to throw an exception
+      expect(() => instruction.execute(registers, memory),
+          throwsA(isA<Exception>()));
+    });
+  });
+
+  group('FENCEInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('FENCE does not throw an exception when executed', () {
+      var instruction = FENCEInstruction();
+      // Expect the execute method to complete without throwing
+      expect(() => instruction.execute(registers, memory), returnsNormally);
+    });
+  });
+
+  group('JALInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('JAL jumps to the correct address and sets return address', () {
+      var instruction = JALInstruction(1, 8); // JAL x1, offset 8
+      int initialPC = registers.getPC();
+      instruction.execute(registers, memory);
+
+      // Program counter should be advanced by the offset
+      expect(registers.getPC(), initialPC + 8);
+
+      // x1 (or ra) should contain the address of the instruction following JAL
+      expect(registers.getGPR(1), initialPC + 4);
+    });
+  });
+
+  group('SWInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('SW correctly stores a word in memory', () {
+      // Set up initial values
+      registers.setGPR(1, 4); // Set base address in rs1 to 4
+      registers.setGPR(2, 123456789); // Set a value in rs2
+      var instruction = SWInstruction(1, 2, 8); // SW x2, x1, 8
+
+      instruction.execute(registers, memory);
+
+      // Memory at address (4 + 8) = 12 should have the value 123456789
+      expect(memory.fetch(12), 123456789);
+    });
+  });
+
+  group('ADDIWInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('ADDIW correctly adds immediate value and sign-extends result', () {
+      registers.setGPR(1, 0x00000000FFFFFFFF); // Set rs1 to a 64-bit value
+      var instruction = ADDIWInstruction(2, 1, 1); // ADDIW x2, x1, 1
+
+      instruction.execute(registers, memory);
+
+      // Result should be sign-extended
+      expect(registers.getGPR(2), 0xFFFFFFFF00000000);
+    });
+  });
+
+  group('CSRRSInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('CSRRS reads CSR value and sets bits in the CSR', () {
+      // Assuming CSR with index 0x305 for demonstration
+      registers.setCSR(0x305, 0xa); // Set initial value for CSR
+      registers.setGPR(1, 0xc); // Set rs1 value
+      var instruction = CSRRSInstruction(2, 1, 0x305); // CSRRS x2, 0x305, x1
+
+      instruction.execute(registers, memory);
+
+      // Check if rd has the initial CSR value
+      expect(registers.getGPR(2), 0xa);
+
+      // Check if CSR has updated value (1010 OR 1100 = 1110)
+      expect(registers.getCSR(0x305), 0xc);
+    });
+
+    test('CSRRS does not modify CSR if rs1 is x0', () {
+      registers.setCSR(0x305, 0xa);
+      var instruction = CSRRSInstruction(2, 0, 0x305); // CSRRS x2, 0x305, x0
+
+      instruction.execute(registers, memory);
+
+      // Check if rd has the initial CSR value
+      expect(registers.getGPR(2), 0xa);
+
+      // CSR should remain unchanged
+      expect(registers.getCSR(0x305), 0xa);
+    });
+  });
+
+  group('CSRRWIInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('CSRRWI reads CSR value and writes immediate to CSR', () {
+      // Assuming CSR with index 773 for demonstration (equivalent to 0x305)
+      registers.setCSR(773, 10); // Set initial value for CSR
+      var instruction = CSRRWIInstruction(2, 773, 12); // CSRRWI x2, 773, 12
+
+      instruction.execute(registers, memory);
+
+      // Check if rd has the initial CSR value
+      expect(registers.getGPR(2), 10);
+
+      // Check if CSR has been set to the immediate value
+      expect(registers.getCSR(773), 12);
+    });
+  });
+
+  group('CSRRWInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    // Setup before each test
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('CSRRW reads CSR value and writes GPR value to CSR', () {
+      // Assuming CSR with index 773 for demonstration
+      registers.setCSR(773, 50); // Set initial value for CSR
+      registers.setGPR(5, 100); // Set value for source register x5
+
+      var instruction = CSRRWInstruction(2, 773, 5); // CSRRW x2, 773, x5
+
+      instruction.execute(registers, memory);
+
+      // Check if rd has the initial CSR value
+      expect(registers.getGPR(2), 50);
+
+      // Check if CSR has been set to the source register value
+      expect(registers.getCSR(773), 100);
+    });
+  });
 }

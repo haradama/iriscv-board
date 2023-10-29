@@ -15,15 +15,16 @@ class CPU {
   }
 
   void step() {
-    int instructionData = memory.fetch(registers.pc);
+    int instructionData = memory.fetch(registers.getPC());
     Instruction? instruction = decoder.decode(instructionData);
 
     if (instruction != null) {
       instruction.execute(registers, memory);
+      print(instruction.toString());
 
       registers.incrementPC();
     } else {
-      throw Exception('Invalid instruction at address ${registers.pc}');
+      throw Exception('Invalid instruction at address ${registers.getPC()}');
     }
   }
 
