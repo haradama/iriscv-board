@@ -44,7 +44,7 @@ class _EmulatorHomePageState extends State<EmulatorHomePage> {
       Uint8List fileBytes = await binaryFile.readAsBytes();
 
       // Initialize the emulator components
-      Emulator emulator = Emulator(memorySize: fileBytes.length);
+      Emulator emulator = Emulator(memorySize: fileBytes.length * 8);
 
       // Load the binary file into memory (this would be emulator specific)
       emulator.load(fileBytes);

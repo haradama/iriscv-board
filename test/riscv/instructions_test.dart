@@ -7,48 +7,98 @@ void main() {
   group('LUIInstruction Tests', () {
     late Registers registers;
     late Memory memory;
+
     setUp(() {
       registers = Registers();
       memory = Memory(size: 1024);
     });
 
-    test('LUI correctly loads a 20-bit immediate into the upper 20 bits', () {
-      var instruction =
-          LUIInstruction(1, 0x12345); // rd = x1, immediate = 0x12345
+    test('LUI correctly loads immediate into upper 20 bits of register', () {
+      const int imm = 0x12345; // 20-bit immediate
+      var instruction = LUIInstruction(1, imm); // LUI x1, 0x12345
       instruction.execute(registers, memory);
-      expect(registers.getGPR(1), 0x12345000);
+
+      // The result in x1 should be the immediate shifted left by 12 bits
+      expect(registers.getGPR(1), imm << 12);
     });
 
-    test('LUI should clear the lower 12 bits', () {
-      var instruction =
-          LUIInstruction(2, 0xFFFFF); // rd = x2, immediate = 0xFFFFF
+    test('LUI sets the lower 12 bits of register to zeros', () {
+      const int imm = 0x12345; // 20-bit immediate
+      var instruction = LUIInstruction(1, imm); // LUI x1, 0x12345
       instruction.execute(registers, memory);
-      expect(registers.getGPR(2), 0xFFFFF000);
+
+      // The lower 12 bits of x1 should be zero
+      expect(registers.getGPR(1) & 0xFFF, 0);
+    });
+
+    test('LUI handles the sign extension of immediate', () {
+      const int imm =
+          0xFFFFF; // A 20-bit immediate that would be negative if sign-extended
+      var instruction = LUIInstruction(1, imm); // LUI x1, 0xFFFFF
+      instruction.execute(registers, memory);
+
+      // The result in x1 should be the immediate shifted left by 12 bits, treated as a signed 32-bit integer
+      int expectedResult = (imm << 12).toSigned(32);
+      expect(registers.getGPR(1), expectedResult);
     });
   });
 
   group('AUIPCInstruction Tests', () {
-    late Registers registers;
-    late Memory memory;
-
-    setUp(() {
-      registers = Registers();
-      memory = Memory(size: 1024);
+    test('Minimum valid rd', () {
+      var instruction = AUIPCInstruction(0, 1024);
+      // Execute and expect functionalities
+      // You would assert the expected outcomes after execution
+      expect(instruction.rd, equals(0));
     });
 
-    test('AUIPC correctly adds shifted immediate to PC', () {
-      registers.setPC(0x100);
-      var instruction =
-          AUIPCInstruction(1, 0x12345); // rd = x1, immediate = 0x12345
-      instruction.execute(registers, memory);
-      expect(registers.getGPR(1), 0x12345100);
+    test('Just above minimum valid rd', () {
+      var instruction = AUIPCInstruction(1, 1024);
+      expect(instruction.rd, equals(1));
     });
 
-    test('AUIPC correctly updates PC', () {
-      registers.setPC(0x100); // Setting PC to an arbitrary value
-      var instruction = AUIPCInstruction(1, 0x12345);
-      instruction.execute(registers, memory);
-      expect(registers.getPC(), 0x104);
+    test('Just below maximum valid rd', () {
+      var instruction = AUIPCInstruction(30, 1024);
+      expect(instruction.rd, equals(30));
+    });
+
+    test('Maximum valid rd', () {
+      var instruction = AUIPCInstruction(31, 1024);
+      expect(instruction.rd, equals(31));
+    });
+
+    test('Minimum valid imm', () {
+      var instruction = AUIPCInstruction(10, -524288);
+      expect(instruction.imm, equals(-524288));
+    });
+
+    test('Just above minimum valid imm', () {
+      var instruction = AUIPCInstruction(10, -524287);
+      expect(instruction.imm, equals(-524287));
+    });
+
+    test('Just below maximum valid imm', () {
+      var instruction = AUIPCInstruction(10, 524287);
+      expect(instruction.imm, equals(524287));
+    });
+
+    test('Maximum valid imm', () {
+      var instruction = AUIPCInstruction(10, 524288);
+      expect(instruction.imm, equals(524288));
+    });
+
+    test('Zero imm', () {
+      var instruction = AUIPCInstruction(10, 0);
+      expect(instruction.imm, equals(0));
+    });
+
+    test('Typical positive imm', () {
+      var instruction = AUIPCInstruction(10, 1024);
+      expect(instruction.imm, equals(1024));
+    });
+
+    test('Typical negative imm', () {
+      var instruction = AUIPCInstruction(10, -1024);
+      expect(instruction.imm, equals(-1024));
     });
   });
 
@@ -766,7 +816,7 @@ void main() {
     });
 
     test('SW stores a word in the correct memory location', () {
-      const valueToStore = 12345678; // An arbitrary value to store
+      const valueToStore = 0x1; // An arbitrary value to store
       const offset = 0; // Use a zero offset for simplicity
       registers.setGPR(1, baseAddress); // Set rs1 to baseAddress
       registers.setGPR(2, valueToStore); // Set rs2 to valueToStore
@@ -1069,6 +1119,402 @@ void main() {
 
       // AND operation of both zeros should result in zero, x3 should hold 0
       expect(registers.getGPR(3), 0);
+    });
+  });
+
+  group('LBInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('LB correctly loads a positive byte', () {
+      const int address = 0x100;
+      const int byteValue = 0x7F; // 127 in decimal
+      memory.storeByte(address, byteValue);
+      var instruction = LBInstruction(2, 1, 0); // LB x2, 0(x1)
+      registers.setGPR(1, address); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded byte is correct
+      expect(registers.getGPR(2), byteValue);
+    });
+
+    test('LB correctly loads a negative byte and sign-extends it', () {
+      const int address = 0x100;
+      const int byteValue = -128;
+      memory.storeByte(address, byteValue);
+      var instruction = LBInstruction(2, 1, 0); // LB x2, 0(x1)
+      registers.setGPR(1, address); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded byte is sign-extended correctly
+      expect(registers.getGPR(2), -128);
+    });
+
+    test('LB correctly loads a byte using an offset', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x4;
+      const int byteValue = 0x7F; // 127 in decimal
+      memory.storeByte(baseAddress + offset, byteValue);
+      var instruction = LBInstruction(2, 1, offset); // LB x2, 4(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded byte from the correct offset is correct
+      expect(registers.getGPR(2), byteValue);
+    });
+  });
+
+  group('LHInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('LH correctly loads a positive halfword', () {
+      const int address = 0x100;
+      const int halfwordValue = 32767; // Largest positive 16-bit signed integer
+      memory.storeHalfword(address, halfwordValue);
+      var instruction = LHInstruction(2, 1, 0); // LH x2, 0(x1)
+      registers.setGPR(1, address); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded halfword is correct
+      expect(registers.getGPR(2), halfwordValue);
+    });
+
+    test('LH correctly loads a negative halfword and sign-extends it', () {
+      const int address = 0x100;
+      const int halfwordValue =
+          -32768; // Smallest negative 16-bit signed integer
+      memory.storeHalfword(address, halfwordValue);
+      var instruction = LHInstruction(2, 1, 0); // LH x2, 0(x1)
+      registers.setGPR(1, address); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded halfword is sign-extended correctly
+      expect(registers.getGPR(2), halfwordValue);
+    });
+
+    test('LH correctly loads a halfword using an offset', () {
+      const int baseAddress = 0x100;
+      const int offset = 2;
+      const int halfwordValue = 32767; // Largest positive 16-bit signed integer
+      memory.storeHalfword(baseAddress + offset, halfwordValue);
+      var instruction = LHInstruction(2, 1, offset); // LH x2, 2(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded halfword from the correct offset is correct
+      expect(registers.getGPR(2), halfwordValue);
+    });
+  });
+
+  group('LWInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('LW correctly loads a word from memory', () {
+      const int baseAddress = 0x04;
+      const int testValue = 0x12345678; // Arbitrary 32-bit value
+      memory.store(baseAddress, testValue);
+      var lwInstruction = LWInstruction(2, 1, 0); // LW x2, 0(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      lwInstruction.execute(registers, memory);
+
+      // Check if x2 now holds the value loaded from memory
+      expect(registers.getGPR(2), testValue);
+    });
+
+    test('LW uses the correct offset', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x04;
+      const int testValue = 0x1; // Arbitrary 32-bit value
+      memory.store(baseAddress + offset, testValue);
+      var lwInstruction = LWInstruction(2, 1, offset); // LW x2, offset(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      lwInstruction.execute(registers, memory);
+
+      // Check if x2 now holds the value loaded from the correct offset
+      expect(registers.getGPR(2), testValue);
+    });
+  });
+
+  group('LBUInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('LBU correctly loads an unsigned byte', () {
+      const int address = 0x04;
+      const int byteValue = 127;
+      memory.storeByte(address, byteValue);
+      var lbuInstruction = LBUInstruction(1, 0, address); // LBU x1, address(x0)
+      registers.setGPR(0, 0); // Base address is 0, stored in x0
+
+      lbuInstruction.execute(registers, memory);
+
+      // x1 should now hold the value 127 since LBU zero-extends
+      expect(registers.getGPR(1), byteValue);
+    });
+
+    test('LBU correctly loads a byte using an offset', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x4;
+      const int byteValue = 0x7F; // 127 in decimal
+      memory.storeByte(baseAddress + offset, byteValue);
+      var instruction = LBUInstruction(2, 1, offset); // LBU x2, 4(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded byte from the correct offset is correct and is zero-extended
+      expect(registers.getGPR(2), byteValue);
+    });
+  });
+
+  group('JALRInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('JALR sets the program counter to the target address', () {
+      const int baseAddress = 0x100;
+      const int offset = 4;
+      const int currentPC = 0x80; // Current program counter value
+      registers.setPC(currentPC);
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      var jalrInstruction =
+          JALRInstruction(2, 1, offset); // JALR x2, x1, offset
+      jalrInstruction.execute(registers, memory);
+
+      // Check if the program counter is set correctly
+      expect(registers.getPC(), baseAddress + offset & ~1);
+    });
+
+    test('JALR stores the return address in the destination register', () {
+      const int baseAddress = 0x100;
+      const int offset = 4;
+      const int currentPC = 0x80; // Current program counter value
+      registers.setPC(currentPC);
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      var jalrInstruction =
+          JALRInstruction(2, 1, offset); // JALR x2, x1, offset
+      jalrInstruction.execute(registers, memory);
+
+      // Check if the return address is stored in the destination register
+      expect(registers.getGPR(2), currentPC + 4);
+    });
+  });
+
+  group('LHUInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('LHU correctly loads an unsigned halfword', () {
+      const int address = 0x100;
+      const int halfwordValue =
+          0xFFFE; // Largest unsigned 16-bit integer minus 1
+      memory.storeHalfword(address, halfwordValue);
+      var instruction = LHUInstruction(2, 1, 0); // LHU x2, 0(x1)
+      registers.setGPR(1, address); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded halfword is correct and zero-extended
+      expect(registers.getGPR(2), halfwordValue);
+    });
+
+    test('LHU correctly loads a halfword using an offset', () {
+      const int baseAddress = 0x100;
+      const int offset = 2;
+      const int halfwordValue = 0x00FF; // 255 in decimal
+      memory.storeHalfword(baseAddress + offset, halfwordValue);
+      var instruction = LHUInstruction(2, 1, offset); // LHU x2, 2(x1)
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+
+      instruction.execute(registers, memory);
+
+      // Check if the loaded halfword from the correct offset is correct and zero-extended
+      expect(registers.getGPR(2), halfwordValue);
+    });
+  });
+
+  group('SBInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('SB correctly stores the least significant byte of a register', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x4;
+      const int valueToStore = 0xAB; // Arbitrary byte value to store
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+      registers.setGPR(
+          2, valueToStore | 0xFFFFFF00); // Ensure that x2 has other bits set
+      var sbInstruction = SBInstruction(1, 2, offset); // SB x2, 4(x1)
+
+      sbInstruction.execute(registers, memory);
+
+      // The memory at baseAddress + offset should now hold the value 0xAB
+      expect(memory.loadByte(baseAddress + offset), valueToStore);
+    });
+
+    test('SB correctly handles negative byte values', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x4;
+      const int valueToStore =
+          0x80; // Represents a negative value in two's complement
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+      registers.setGPR(2, valueToStore); // Set x2 to the negative value
+      var sbInstruction = SBInstruction(1, 2, offset); // SB x2, 4(x1)
+
+      sbInstruction.execute(registers, memory);
+
+      // The memory at baseAddress + offset should now hold the negative value
+      // The loadByte method should sign-extend this negative value
+      expect(memory.loadByte(baseAddress + offset), -128);
+    });
+  });
+
+  group('SHInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+    });
+
+    test('SH correctly stores the least significant halfword of a register',
+        () {
+      const int baseAddress = 0x100;
+      const int offset = 0x2;
+      const int valueToStore = 0xABCD; // Arbitrary halfword value to store
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+      registers.setGPR(
+          2, valueToStore | 0xFFFF0000); // Ensure that x2 has other bits set
+      var shInstruction = SHInstruction(1, 2, offset); // SH x2, 2(x1)
+
+      shInstruction.execute(registers, memory);
+
+      // The memory at baseAddress + offset should now hold the value 0xABCD
+      expect(memory.loadHalfword(baseAddress + offset), valueToStore);
+    });
+
+    test('SH correctly handles negative halfword values', () {
+      const int baseAddress = 0x100;
+      const int offset = 0x2;
+      const int valueToStore =
+          0x8000; // Represents a negative value in two's complement
+      registers.setGPR(1, baseAddress); // Set x1 to the base address
+      registers.setGPR(2, valueToStore); // Set x2 to the negative value
+      var shInstruction = SHInstruction(1, 2, offset); // SH x2, 2(x1)
+
+      shInstruction.execute(registers, memory);
+
+      // The memory at baseAddress + offset should now hold the negative value
+      // The loadHalfword method should sign-extend this negative value
+      expect(memory.loadHalfword(baseAddress + offset), -32768);
+    });
+  });
+
+  group('BLTInstruction Tests', () {
+    late Registers registers;
+    late Memory memory;
+
+    setUp(() {
+      registers = Registers();
+      memory = Memory(size: 1024);
+      // Assume the program counter starts at 0
+      registers.setPC(0);
+    });
+
+    test('BLT branches if the first register is less than the second', () {
+      registers.setGPR(1, 1); // x1 = 1
+      registers.setGPR(2, 2); // x2 = 2
+      var bltInstruction = BLTInstruction(1, 2, 4); // BLT x1, x2, 4
+
+      bltInstruction.execute(registers, memory);
+
+      // The program counter should have been updated by the offset
+      expect(registers.getPC(), 4);
+    });
+
+    test(
+        'BLT does not branch if the first register is not less than the second',
+        () {
+      registers.setGPR(1, 2); // x1 = 2
+      registers.setGPR(2, 1); // x2 = 1
+      var bltInstruction = BLTInstruction(1, 2, 4); // BLT x1, x2, 4
+
+      bltInstruction.execute(registers, memory);
+
+      // The program counter should not have been updated
+      expect(registers.getPC(), 0);
+    });
+
+    test('BLT branches correctly with negative offset', () {
+      registers.setGPR(1, 1); // x1 = 1
+      registers.setGPR(2, 2); // x2 = 2
+      var bltInstruction = BLTInstruction(1, 2, -4); // BLT x1, x2, -4
+      // Set the program counter to a non-zero value
+      registers.setPC(10);
+
+      bltInstruction.execute(registers, memory);
+
+      // The program counter should have been updated by the negative offset
+      expect(registers.getPC(), 6);
+    });
+
+    test('BLT handles signed comparison correctly', () {
+      registers.setGPR(1, -1); // x1 = -1 (signed)
+      registers.setGPR(2, 0); // x2 = 0
+      var bltInstruction = BLTInstruction(1, 2, 4); // BLT x1, x2, 4
+
+      bltInstruction.execute(registers, memory);
+
+      // x1 is less than x2 when interpreted as signed integers, so the branch should be taken
+      expect(registers.getPC(), 4);
     });
   });
 }

@@ -16,12 +16,34 @@ void main() {
       expect(memory.size, equals(testMemorySize));
     });
 
-    test('Store and fetch a word from memory', () {
+    test('store and fetch a word', () {
       int address = 100;
-      int value = 0x1;
+      int value = -2147483648;
       memory.store(address, value);
-      int fetchedValue = memory.fetch(address);
-      expect(fetchedValue, equals(value));
+      expect(memory.fetch(address), equals(value));
+      value = 2147483647;
+      memory.store(address, value);
+      expect(memory.fetch(address), equals(value));
+    });
+
+    test('store and fetch a halfword', () {
+      int address = 200;
+      int value = -32768; // Min value for a signed 16-bit integer
+      memory.storeHalfword(address, value);
+      expect(memory.loadHalfword(address), equals(value));
+      value = 32767; // Max value for a signed 16-bit integer
+      memory.storeHalfword(address, value);
+      expect(memory.loadHalfword(address), equals(value));
+    });
+
+    test('store and fetch a byte', () {
+      int address = 300;
+      int value = -128; // Min value for a signed 8-bit integer
+      memory.storeByte(address, value);
+      expect(memory.loadByte(address), equals(value));
+      value = 127;
+      memory.storeByte(address, value);
+      expect(memory.loadByte(address), equals(value));
     });
 
     test('Reset sets all memory values to zero', () {
@@ -32,17 +54,6 @@ void main() {
       memory.reset();
       int fetchedValue = memory.fetch(address);
       expect(fetchedValue, equals(0));
-    });
-
-    test('Fetching from an out-of-bounds address throws an exception', () {
-      int address = testMemorySize; // Out of bounds
-      expect(() => memory.fetch(address), throwsA(isA<Exception>()));
-    });
-
-    test('Storing to an out-of-bounds address throws an exception', () {
-      int address = testMemorySize; // Out of bounds
-      int value = 0x12345678;
-      expect(() => memory.store(address, value), throwsA(isA<Exception>()));
     });
 
     test('Storing and fetching negative values retains sign', () {

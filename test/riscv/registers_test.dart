@@ -11,7 +11,7 @@ void main() {
     });
 
     test('General purpose registers are initialized to zero', () {
-      for (int i = 0; i < Registers.numGeneralPurposeRegisters; i++) {
+      for (int i = 0; i < Registers.numGPR; i++) {
         expect(registers.getGPR(i), equals(0));
       }
     });
@@ -39,19 +39,9 @@ void main() {
       expect(registers.getPC(), equals(104));
     });
 
-    test('Accessing GPR with invalid index throws exception', () {
-      expect(() => registers.getGPR(32), throwsA(isA<Exception>()));
-      expect(() => registers.setGPR(32, 42), throwsA(isA<Exception>()));
-    });
-
     test('Setting and getting CSR values', () {
       registers.setCSR(100, 42);
       expect(registers.getCSR(100), equals(42));
-    });
-
-    test('Accessing CSR with invalid index throws exception', () {
-      expect(() => registers.getCSR(4096), throwsA(isA<Exception>()));
-      expect(() => registers.setCSR(4096, 42), throwsA(isA<Exception>()));
     });
   });
 }

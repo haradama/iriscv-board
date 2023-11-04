@@ -1,31 +1,42 @@
+import 'dart:typed_data';
+
 class Registers {
-  static const int numGeneralPurposeRegisters = 32;
+  static const int numGPR = 32;
   static const int numCSR = 4096;
 
-  late List<int> _gprs;
-  late List<int> _csrs;
+  static const int maxInt32 = (1 << 31) - 1;
+  static const int minInt32 = -1 << 31;
+
+  late Int32List _gprs;
+  late Int32List _csrs;
   late int pc;
 
   Registers() {
-    _gprs = List.filled(numGeneralPurposeRegisters, 0);
-    _csrs = List.filled(numCSR, 0);
+    _gprs = Int32List(numGPR);
+    _csrs = Int32List(numCSR);
     pc = 0;
   }
 
   int getGPR(int index) {
-    _validateGPRIndex(index);
-    return _gprs[index];
+    assert(index >= 0 && index < numGPR,
+        'GPR index must be between 0 and ${numGPR - 1}');
+    int value = _gprs[index];
+    return value;
   }
 
   void setGPR(int index, int value) {
-    _validateGPRIndex(index);
+    assert(index >= 0 && index < numGPR,
+        'GPR index must be between 0 and ${numGPR - 1}');
+    assert(value >= minInt32 && value <= maxInt32,
+        'GPR value must be a valid 32-bit signed integer');
+
     if (index != 0) {
       _gprs[index] = value;
     }
   }
 
   void reset() {
-    for (int i = 0; i < numGeneralPurposeRegisters; i++) {
+    for (int i = 0; i < numGPR; i++) {
       _gprs[i] = 0;
     }
     pc = 0;
@@ -36,32 +47,24 @@ class Registers {
   }
 
   void setPC(int value) {
+    assert(value >= 0, 'PC value must be non-negative');
     pc = value;
   }
 
   void incrementPC() {
+    assert(pc + 4 >= 0, 'PC value must be non-negative after increment');
     pc += 4;
   }
 
-  void _validateGPRIndex(int index) {
-    if (index < 0 || index >= numGeneralPurposeRegisters) {
-      throw Exception('Invalid GPR index: $index');
-    }
-  }
-
   int getCSR(int index) {
-    _validateCSRIndex(index);
+    assert(index >= 0 && index < numCSR,
+        'CSR index must be between 0 and ${numCSR - 1}');
     return _csrs[index];
   }
 
   void setCSR(int index, int value) {
-    _validateCSRIndex(index);
+    assert(index >= 0 && index < numCSR,
+        'CSR index must be between 0 and ${numCSR - 1}');
     _csrs[index] = value;
-  }
-
-  void _validateCSRIndex(int index) {
-    if (index < 0 || index >= numCSR) {
-      throw Exception('Invalid CSR index: $index');
-    }
   }
 }

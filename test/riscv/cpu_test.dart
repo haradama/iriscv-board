@@ -8,7 +8,7 @@ import 'package:iriscv_board/riscv/cpu.dart';
 // Mock instruction to use in testing
 class MockInstruction extends Instruction {
   final void Function() onExecute;
-  MockInstruction(this.onExecute) : super([]);
+  MockInstruction(this.onExecute) : super();
 
   @override
   void execute(Registers registers, Memory memory) {

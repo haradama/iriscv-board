@@ -16,6 +16,7 @@ class CPU {
 
   void step() {
     int instructionData = memory.fetch(registers.getPC());
+    print("instructionData: $instructionData");
     Instruction? instruction = decoder.decode(instructionData);
 
     if (instruction != null) {
