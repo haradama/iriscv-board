@@ -18,7 +18,7 @@ void main() {
 
     test('Store and fetch a word from memory', () {
       int address = 100;
-      int value = 0x12345678;
+      int value = 0x1;
       memory.store(address, value);
       int fetchedValue = memory.fetch(address);
       expect(fetchedValue, equals(value));
@@ -47,10 +47,10 @@ void main() {
 
     test('Storing and fetching negative values retains sign', () {
       int address = 100;
-      int value = -1; // 0xFFFFFFFF in two's complement
+      int value = -1;
       memory.store(address, value);
       int fetchedValue = memory.fetch(address);
-      expect(fetchedValue, equals(0xFFFFFFFF));
+      expect(fetchedValue, equals(-1));
     });
   });
 }

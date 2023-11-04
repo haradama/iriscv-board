@@ -93,18 +93,156 @@ class SLTIUInstruction extends Instruction {
 }
 
 class XORIInstruction extends Instruction {
-  XORIInstruction(int rd, int rs1, int immediate) : super([rd, rs1, immediate]);
+  final int rd; // Destination register
+  final int rs1; // Source register
+  final int imm; // Immediate value
+
+  XORIInstruction(this.rd, this.rs1, this.imm) : super([rd, rs1, imm]);
 
   @override
   void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(rs1);
+
+    // Sign-extend the immediate value from 12 to 32 bits correctly
+    // This operation fills the top 20 bits with the 12th bit of imm
+    int signExtendedImm = (imm << 20) >> 20;
+
+    // Perform the XOR operation
+    int result = rs1Value ^ signExtendedImm;
+
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() => 'XORI x$rd, x$rs1, $imm';
+}
+
+class XORInstruction extends Instruction {
+  XORInstruction(int rd, int rs1, int rs2) : super([rd, rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    // Retrieve values from the source registers
     int rs1Value = registers.getGPR(operands[1]);
-    int signExtendedImmediate = (operands[2] << 20) >> 20;
-    int result = rs1Value ^ signExtendedImmediate;
+    int rs2Value = registers.getGPR(operands[2]);
+
+    // Perform bitwise XOR
+    int result = rs1Value ^ rs2Value;
+
+    // Store the result in the destination register
     registers.setGPR(operands[0], result);
   }
 
   @override
-  String toString() => 'XORI x${operands[0]}, x${operands[1]}, ${operands[2]}';
+  String toString() => 'XOR x${operands[0]}, x${operands[1]}, x${operands[2]}';
+}
+
+class SRLInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register
+  final int shamt; // Shift amount (immediate)
+
+  SRLInstruction(this.rd, this.rs1, this.shamt) : super([rd, rs1, shamt]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(rs1);
+    // Convert to unsigned and apply logical right shift
+    int result = rs1Value.toUnsigned(32) >> shamt;
+    // Store the result back as a signed integer
+    registers.setGPR(rd, result.toSigned(32));
+  }
+
+  @override
+  String toString() {
+    return 'SRL x$rd, x$rs1, $shamt';
+  }
+}
+
+class SRAInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register
+  final int shamt; // Shift amount (immediate)
+
+  SRAInstruction(this.rd, this.rs1, this.shamt) : super([rd, rs1, shamt]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(rs1);
+    // Arithmetic right shift
+    int result = rs1Value >> shamt;
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() {
+    return 'SRA x$rd, x$rs1, $shamt';
+  }
+}
+
+class ORInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register 1
+  final int rs2; // Source register 2
+
+  ORInstruction(this.rd, this.rs1, this.rs2) : super([rd, rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(rs1);
+    int rs2Value = registers.getGPR(rs2);
+    int result = rs1Value | rs2Value;
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() {
+    return 'OR x$rd, x$rs1, x$rs2';
+  }
+}
+
+class ANDInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Source register 1
+  final int rs2; // Source register 2
+
+  ANDInstruction(this.rd, this.rs1, this.rs2) : super([rd, rs1, rs2]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int rs1Value = registers.getGPR(rs1);
+    int rs2Value = registers.getGPR(rs2);
+    int result = rs1Value & rs2Value;
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() {
+    return 'AND x$rd, x$rs1, x$rs2';
+  }
+}
+
+class LBInstruction extends Instruction {
+  final int rd; // Destination register
+  final int rs1; // Base address register
+  final int offset; // Offset to add to the base address
+
+  LBInstruction(this.rd, this.rs1, this.offset) : super([rd, rs1, offset]);
+
+  @override
+  void execute(Registers registers, Memory memory) {
+    int baseAddress = registers.getGPR(rs1);
+    int address = baseAddress + offset;
+    int byte = memory.fetch(address);
+    // Sign-extend the byte to 32 bits
+    int result = (byte << 24) >> 24;
+    registers.setGPR(rd, result);
+  }
+
+  @override
+  String toString() {
+    return 'LB x$rd, $offset(x$rs1)';
+  }
 }
 
 class ORIInstruction extends Instruction {
@@ -417,31 +555,12 @@ class SWInstruction extends Instruction {
   String toString() => 'SW x$rs2, x$rs1, $offset';
 }
 
-class ADDIWInstruction extends Instruction {
-  final int rd; // Destination register
-  final int rs1; // Source register
-  final int imm; // 12-bit immediate value
-
-  ADDIWInstruction(this.rd, this.rs1, this.imm) : super([]);
-
-  @override
-  void execute(Registers registers, Memory memory) {
-    int sum = registers.getGPR(rs1) + imm; // 64-bit addition
-
-    int result = (sum << 32) >> 32; // Extract and sign-extend lower 32 bits
-    registers.setGPR(rd, result);
-  }
-
-  @override
-  String toString() => 'ADDIW x$rd, x$rs1, $imm';
-}
-
 class CSRRSInstruction extends Instruction {
   final int rd; // Destination register
-  final int rs1; // Source register
+  final int rs1; // Source register (can be x0)
   final int csr; // CSR register index
 
-  CSRRSInstruction(this.rd, this.rs1, this.csr) : super([]);
+  CSRRSInstruction(this.rd, this.rs1, this.csr) : super([rd, rs1, csr]);
 
   @override
   void execute(Registers registers, Memory memory) {
@@ -449,9 +568,10 @@ class CSRRSInstruction extends Instruction {
     registers.setGPR(rd, csrValue); // Write CSR value to rd
 
     if (rs1 != 0) {
-      // Don't modify the CSR if rs1 is x0
+      // If rs1 is not x0, set the CSR bits that are set in rs1
       int rs1Value = registers.getGPR(rs1);
-      registers.setCSR(csr, csrValue | rs1Value); // Set bits in the CSR
+      int newCsrValue = csrValue | rs1Value;
+      registers.setCSR(csr, newCsrValue);
     }
   }
 
